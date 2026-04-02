@@ -3,7 +3,7 @@ import streamlit as st
 from pymongo import MongoClient
 import matplotlib.pyplot as plt
 import seaborn as sns
-from wordcloud import WordCloud, STOPWORDS
+from wordcloud import WordCloud
 import pandas as pd # Para las gráficas sí podemos usarlo para procesar resultados SQL
 from configuracion import *
 from load_data import *
@@ -37,7 +37,7 @@ with st.sidebar:
     # Selector de página/sección
     pagina = st.selectbox(
         "Selecciona una sección",
-        ["🏠 Inicio" ,"Evolución Reviews por Años", "Evolución Popularidad Items","Histograma por Nota", "Evolución Temporal por Categoría","Histograma Reviews por Usuario", "Nube de Palabras por Categoría","🌟 Visualización Personalizada"]
+        ["🏠 Inicio" ,"Evolución Reviews por Años", "Evolución Popularidad Items","Histograma por Nota", "Evolución Temporal por Categoría","Histograma Reviews por Usuario", "Nube de Palabras por Categoría","🌟 Visualización Personalizada","🚪 Salir"]
     )
 
     st.divider()
@@ -48,7 +48,14 @@ st.title("🛍️🗒️ Shopping Items & Reviews 🗒️🛍️")
 st.markdown("Análisis en profundidad y gráfico sobre los usuarios y sus reseñas")
 st.divider()
 
-mapeo_categorias = {
+mapeo_categorias_mongo = {
+        "🎮 Videojuegos": "Videogames",
+        "🎵 Música digital":"Music",
+        "🎹 Instrumentos musicales": "Instruments",
+        "🧸 Juguetes": "Toys_Games",
+        }
+
+mapeo_categorias_sql = {
         "🎮 Videojuegos": "video_games",
         "🎵 Música digital": "digital_music",
         "🎹 Instrumentos musicales": "musical_instruments",
@@ -78,7 +85,7 @@ elif pagina == "Evolución Reviews por Años":
                 """
             cursor.execute(query)
         else:
-            categoria = mapeo_categorias[subpagina]
+            categoria = mapeo_categorias_sql[subpagina]
             st.write(f"Mostrando datos de: **{subpagina.upper()}**")
             query = """
                 SELECT YEAR(reviewTime) AS año, COUNT(*) AS n_reviews 
@@ -134,7 +141,7 @@ elif pagina == "Evolución Popularidad Items":
             titulo = "todas las categorías"
             cursor.execute(query)
         else:
-            categoria = mapeo_categorias[subpagina]
+            categoria = mapeo_categorias_sql[subpagina]
             st.write(f"Mostrando datos de: **{subpagina.upper()}**")
             query = """
                 SELECT asin, COUNT(*) as n_reviews 
@@ -200,7 +207,7 @@ elif pagina == "Histograma por Nota":
                 ["📋 Blanc page","🎮 Videojuegos" ,"🎵 Música digital","🎹 Instrumentos musicales","🧸 Juguetes"]
             )
             if subpagina2 != "📋 Blanc page":
-                categoria = mapeo_categorias[subpagina2]
+                categoria = mapeo_categorias_sql[subpagina2]
                 st.write(f"Mostrando datos de: **{subpagina2.upper()}**")
                 query = """
                     SELECT overall,COUNT(*) AS n_reviews
@@ -270,7 +277,7 @@ elif pagina == "Evolución Temporal por Categoría":
         ["📋 Blanc page","🎮 Videojuegos" ,"🎵 Música digital","🎹 Instrumentos musicales","🧸 Juguetes"]
     )
     if subpagina != "📋 Blanc page":
-        categoria = mapeo_categorias[subpagina]
+        categoria = mapeo_categorias_sql[subpagina]
         st.write(f"Mostrando datos de: **{subpagina.upper()}**")
         query = """
             SELECT reviewTime, COUNT(*) as n_reviews
@@ -353,6 +360,42 @@ elif pagina == "Histograma Reviews por Usuario":
 
 elif pagina == "Nube de Palabras por Categoría":
     st.subheader("💭 Nube de Palabras por Categoría")
+    st.markdown("A continuación la nube de palabras de aquellas palabras " \
+    "más comunes en las reviews")
+    subpagina = st.selectbox(
+            "Selecciona una categoría para la nube",
+            ["🎮 Videojuegos" ,"🎵 Música digital","🎹 Instrumentos musicales","🧸 Juguetes"]
+        )
+        
+    categoria_mongo = mapeo_categorias_mongo[subpagina]
+    coleccion = db_mongo[categoria_mongo]
+    #Limitamos para no saturar
+    cursor_mongo = coleccion.find({}, {"summary": 1, "_id": 0}).limit(2000)
+    #Unimos todo el texto para trabajar directamente sobre todo ello entero
+    texto_completo = " ".join([doc['summary'] for doc in cursor_mongo if doc.get('summary')])
+
+    if texto_completo:
+        wordcloud = WordCloud(
+            width=800, 
+            height=400,
+            background_color='white',
+            min_word_length=4,
+            colormap='magma', 
+            min_font_size=10
+        ).generate(texto_completo)
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.imshow(wordcloud, interpolation='bilinear')
+        plt.axis("off")
+
+        st.pyplot(fig)
+        
+        st.success(f"Nube generada con éxito para {subpagina}")
+    else:
+        st.warning("No hay suficientes reseñas de texto para esta categoría.")
+
+elif pagina == "🌟 Visualización Personalizada":
+    st.subheader("🌟 Visualización Personalizada")
     st.markdown("A continuación la nube de palabras de aquellas palabras" \
     "más comunes en las reviews")
     subpagina = st.selectbox(
@@ -360,39 +403,37 @@ elif pagina == "Nube de Palabras por Categoría":
             ["🎮 Videojuegos" ,"🎵 Música digital","🎹 Instrumentos musicales","🧸 Juguetes"]
         )
         
-    categoria_mongo = mapeo_categorias[subpagina]
+    categoria_mongo = mapeo_categorias_mongo[subpagina]
     coleccion = db_mongo[categoria_mongo]
-    with st.spinner(f"Extrayendo textos de {subpagina}..."):
-        # 2. Traemos una muestra de reviews (limitamos a 2000 para que sea fluido)
-        # Solo necesitamos el campo 'reviewText'
-        cursor_mongo = coleccion.find({}, {"reviewText": 1, "_id": 0}).limit(2000)
-        
-        # Unimos todos los textos en un solo "chorro" de palabras
-        texto_completo = " ".join([doc['reviewText'] for doc in cursor_mongo if doc.get('reviewText')])
+    #Limitamos para no saturar
+    cursor_mongo = coleccion.find({}, {"summary": 1, "_id": 0}).limit(2000)
+    #Unimos todo el texto para trabajar directamente sobre todo ello entero
+    texto_completo = " ".join([doc['summary'] for doc in cursor_mongo if doc.get('summary')])
 
     if texto_completo:
-        # 3. Configuración de la Nube
-        # Añadimos palabras que no queremos que salgan (Stopwords)
-        palabras_prohibidas = set(STOPWORDS)
-        palabras_prohibidas.update(["br", "game", "product", "one", "amazon"]) # Limpieza extra
-
         wordcloud = WordCloud(
             width=800, 
             height=400,
             background_color='white',
-            stopwords=palabras_prohibidas,
-            colormap='magma', # Colores chulos
+            min_word_length=4,
+            colormap='magma', 
             min_font_size=10
         ).generate(texto_completo)
 
-        # 4. Mostrar con Matplotlib
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis("off") # Quitamos los ejes porque una nube no los necesita
-        plt.tight_layout(pad=0)
+        plt.axis("off")
 
         st.pyplot(fig)
         
         st.success(f"Nube generada con éxito para {subpagina}")
     else:
         st.warning("No hay suficientes reseñas de texto para esta categoría.")
+
+elif pagina == "🚪 Salir":
+    st.balloons() # Un toque de despedida
+    st.header("¡Hasta pronto!")
+    st.write("La ejecución del dashboard se ha detenido. Puedes cerrar esta pestaña.")
+    
+    # Esto detiene cualquier ejecución posterior del script
+    st.stop()
