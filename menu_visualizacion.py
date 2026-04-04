@@ -4,29 +4,25 @@ from pymongo import MongoClient
 import matplotlib.pyplot as plt
 import seaborn as sns
 from wordcloud import WordCloud
-import pandas as pd # Para las gráficas sí podemos usarlo para procesar resultados SQL
+import pandas as pd # Para las gráficas lo usamos para procesar resultados SQL
 from configuracion import *
 from load_data import *
 
 st.set_page_config(page_title="Reviews Dashboard", layout="wide",initial_sidebar_state="expanded")
 
-# Conexión a la BBDD (la envolvemos en una función para que sea rápida)
+# Conexión a la BBDD (Ayuda IA para la conexión)
 @st.cache_resource
 def get_conns():
     conn_sql = pymysql.connect(**MYSQL_CONFIG, cursorclass=pymysql.cursors.DictCursor)
-    # Aquí añadirías la de Mongo si la necesitas
     return conn_sql
 
 @st.cache_resource
 def init_mongodb():
-    # Usamos los datos de tu diccionario MONGO_CONFIG
     client = MongoClient(MONGO_CONFIG['host'])
-    # Retornamos la base de datos específica
     return client[MONGO_CONFIG['database']]
 
-# Ejecutamos la función para tener el objeto db_mongo disponible
+# Ejecutamos para poder trabajar con las conexiones para la hora de hacer las consultas
 db_mongo = init_mongodb()
-
 conn = get_conns()
 
 # --- MENÚ LATERAL ---
@@ -61,6 +57,7 @@ mapeo_categorias_sql = {
         "🎹 Instrumentos musicales": "musical_instruments",
         "🧸 Juguetes": "toys_games",
         }
+
 if pagina == "🏠 Inicio":
     pass
 
@@ -75,38 +72,38 @@ elif pagina == "Evolución Reviews por Años":
     )
 
     if subpagina != "📋 Blanc page" :
-        if subpagina == "🌍 Todo":
+        if subpagina == "🌍 Todo": #Realizamos las consultas para las páginas que no sean Blanc page
             st.write("Mostrando datos de: **TODAS LAS CATEGORÍAS**")
             query = """
                 SELECT YEAR(reviewTime) AS año, COUNT(*) AS n_reviews 
-                FROM Reviews 
+                FROM reviews 
                 GROUP BY año 
                 ORDER BY año
                 """
             cursor.execute(query)
-        else:
+        else: #Adaptamos a la categoría, es más eficiente que una página de la página... etc
             categoria = mapeo_categorias_sql[subpagina]
             st.write(f"Mostrando datos de: **{subpagina.upper()}**")
             query = """
                 SELECT YEAR(reviewTime) AS año, COUNT(*) AS n_reviews 
-                FROM Reviews 
+                FROM reviews 
                 WHERE categoria = %s 
                 GROUP BY año 
                 ORDER BY año
                 """
-            cursor.execute(query, (categoria,))
+            cursor.execute(query, (categoria,)) #Ejecutamos query con los argumentos correspondientes
         resultado = cursor.fetchall()
 
         if resultado:
             df = pd.DataFrame(resultado)
-            df['año'] = pd.to_numeric(df['año'])
+            df['año'] = pd.to_numeric(df['año']) #Convertimos el año a numérico para quitar la ,
 
             st.dataframe(
                 df,
                 column_config={
-                    "año": st.column_config.NumberColumn("Año", format="%d")
+                    "año": st.column_config.NumberColumn("Año", format="%d") #Colocamos el año a la der.
                 },
-                hide_index= True,
+                hide_index= True, #Escondemos el índice que viene por defecto
                 use_container_width=True)
 
             # Creamos la gráfica con Seaborn
@@ -120,7 +117,7 @@ elif pagina == "Evolución Reviews por Años":
         else:
             st.info(f"No hay datos disponibles para {subpagina} en la base de datos.")
 
-elif pagina == "Evolución Popularidad Items":
+elif pagina == "Evolución Popularidad Items": #Realizamos lo mismo para las demás consultas
     st.subheader("📉 Evolución Popularidad Items")
     st.markdown("A continuación se muestra la popularidad de los " \
     "artículos en función de la categoría (curva de distribución)")
@@ -134,7 +131,7 @@ elif pagina == "Evolución Popularidad Items":
             st.write("Mostrando datos de: **TODAS LAS CATEGORÍAS**")
             query = """
                 SELECT asin, COUNT(*) as n_reviews 
-                FROM Reviews 
+                FROM reviews 
                 GROUP BY asin 
                 ORDER BY n_reviews DESC
                 """
@@ -145,7 +142,7 @@ elif pagina == "Evolución Popularidad Items":
             st.write(f"Mostrando datos de: **{subpagina.upper()}**")
             query = """
                 SELECT asin, COUNT(*) as n_reviews 
-                FROM Reviews 
+                FROM reviews 
                 WHERE categoria = %s
                 GROUP BY asin 
                 ORDER BY n_reviews DESC
@@ -260,8 +257,8 @@ elif pagina == "Histograma por Nota":
             ax.set_title(f"Distribución por nota - {titulo}")
             ax.set_xlabel("Nota (1-5)")
             ax.set_ylabel("Número de reviews")
-            for i in range(5): #Añadimos la nota concreta encima de cada boxplot
-                ax.bar_label(ax.containers[i], padding=3)
+            for container in ax.containers:
+                ax.bar_label(container, fmt='%.0f', padding=3)
             st.pyplot(fig)
         else:
             st.info(f"No hay datos disponibles para {subpagina} en la base de datos.")
@@ -337,6 +334,7 @@ elif pagina == "Histograma Reviews por Usuario":
 
     if resultado:
         df = pd.DataFrame(resultado)
+        #Filtramos para evitar sobrecargar el sistema
         df_plot = df[df['n_reviews'] <= 50]
         st.dataframe(
             df,
@@ -347,7 +345,6 @@ elif pagina == "Histograma Reviews por Usuario":
         # Creamos la gráfica con Seaborn
         fig, ax = plt.subplots(figsize=(10, 5))
         sns.barplot(x="n_reviews", y="n_users", data=df_plot, palette="viridis", ax=ax)
-        #Pasamos todo a notación científica (por si acaso)
         ax.set_title(f"Reviews por usuario")
         ax.set_xlabel("Número de reviews")
         ax.set_ylabel("Número de users")
@@ -356,7 +353,7 @@ elif pagina == "Histograma Reviews por Usuario":
         st.pyplot(fig)
         st.write(f"El número de reviews para el que hay más usuarios: **{df['n_reviews'].iloc[0]}**")
     else:
-        st.info(f"No hay datos disponibles  en la base de datos.")
+        st.info(f"No hay datos disponibles en la base de datos.")
 
 elif pagina == "Nube de Palabras por Categoría":
     st.subheader("💭 Nube de Palabras por Categoría")
@@ -371,7 +368,7 @@ elif pagina == "Nube de Palabras por Categoría":
     coleccion = db_mongo[categoria_mongo]
     #Limitamos para no saturar
     cursor_mongo = coleccion.find({}, {"summary": 1, "_id": 0}).limit(2000)
-    #Unimos todo el texto para trabajar directamente sobre todo ello entero
+    #Unimos todo el texto para trabajar directamente sobre todo ello entero (Ayuda IA para no saturar )
     texto_completo = " ".join([doc['summary'] for doc in cursor_mongo if doc.get('summary')])
 
     if texto_completo:
@@ -385,7 +382,7 @@ elif pagina == "Nube de Palabras por Categoría":
         ).generate(texto_completo)
 
         fig, ax = plt.subplots(figsize=(10, 5))
-        ax.imshow(wordcloud, interpolation='bilinear')
+        ax.imshow(wordcloud, interpolation='bilinear') #Ayuda de IA para la representación
         plt.axis("off")
 
         st.pyplot(fig)
@@ -395,40 +392,68 @@ elif pagina == "Nube de Palabras por Categoría":
         st.warning("No hay suficientes reseñas de texto para esta categoría.")
 
 elif pagina == "🌟 Visualización Personalizada":
-    st.subheader("🌟 Visualización Personalizada")
-    st.markdown("A continuación la nube de palabras de aquellas palabras" \
-    "más comunes en las reviews")
+    st.subheader("🗺️ Mapa de Calor: Estacionalidad de Reviews")
+    st.markdown("A continuación se muestra en qué meses y años se concentra el mayor volumen de reseñas en la plataforma")
+    
+    cursor = conn.cursor()
+    
     subpagina = st.selectbox(
-            "Selecciona una categoría para la nube",
-            ["🎮 Videojuegos" ,"🎵 Música digital","🎹 Instrumentos musicales","🧸 Juguetes"]
-        )
-        
-    categoria_mongo = mapeo_categorias_mongo[subpagina]
-    coleccion = db_mongo[categoria_mongo]
-    #Limitamos para no saturar
-    cursor_mongo = coleccion.find({}, {"summary": 1, "_id": 0}).limit(2000)
-    #Unimos todo el texto para trabajar directamente sobre todo ello entero
-    texto_completo = " ".join([doc['summary'] for doc in cursor_mongo if doc.get('summary')])
+        "Seleccione una categoría para el Mapa de Calor",
+        ["📋 Blanc page", "🎮 Videojuegos" ,"🎵 Música digital","🎹 Instrumentos musicales","🧸 Juguetes","🌍 Todo"]
+    )
+    if subpagina != "📋 Blanc page":
+        if subpagina == "🌍 Todo":
+            st.write("Mostrando datos de: **TODAS LAS CATEGORÍAS**")
+            query = """
+                SELECT YEAR(reviewTime) AS año, MONTH(reviewTime) AS mes, COUNT(*) AS total_reseñas
+                FROM reviews
+                WHERE YEAR(reviewTime) > 2005 
+                GROUP BY año, mes
+                ORDER BY año, mes
+                """
+            titulo = "todas las categorías"
+            cursor.execute(query)
+        else:
+            categoria = mapeo_categorias_sql[subpagina]
+            st.write(f"Mostrando datos de: **{subpagina.upper()}**")
+            query = """
+                SELECT YEAR(reviewTime) AS año, MONTH(reviewTime) AS mes, COUNT(*) AS total_reseñas
+                FROM reviews
+                WHERE categoria = %s AND YEAR(reviewTime) > 2005 
+                GROUP BY año, mes
+                ORDER BY año, mes
+                """
+            titulo = subpagina[2:]
+            cursor.execute(query, (categoria,))
+        resultado = cursor.fetchall()        
+        if resultado:
+            df = pd.DataFrame(resultado)
+            #Mapeamos los nombres para darles un valor categórico
+            meses_nombres = {
+                1:'Ene', 2:'Feb', 3:'Mar', 4:'Abr', 5:'May', 6:'Jun', 
+                7:'Jul', 8:'Ago', 9:'Sep', 10:'Oct', 11:'Nov', 12:'Dic'
+            }
+            df['mes_nombre'] = df['mes'].map(meses_nombres)
+            
+            # Pivotamos la tabla: años en x, meses en y
+            matriz_heatmap = df.pivot(index='mes_nombre', columns='año', values='total_reseñas')
+            
+            # Ordenamos los meses correctamente para que no salgan alfabéticamente
+            orden_meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+            matriz_heatmap = matriz_heatmap.reindex(orden_meses)
 
-    if texto_completo:
-        wordcloud = WordCloud(
-            width=800, 
-            height=400,
-            background_color='white',
-            min_word_length=4,
-            colormap='magma', 
-            min_font_size=10
-        ).generate(texto_completo)
+            # Dibujamos el Heatmap con Seaborn
+            fig, ax = plt.subplots(figsize=(12, 6))
+            sns.heatmap(matriz_heatmap, cmap="coolwarm", linewidths=.5, annot=False, ax=ax)
 
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.imshow(wordcloud, interpolation='bilinear')
-        plt.axis("off")
-
-        st.pyplot(fig)
-        
-        st.success(f"Nube generada con éxito para {subpagina}")
-    else:
-        st.warning("No hay suficientes reseñas de texto para esta categoría.")
+            ax.set_title("Volumen de reseñas por Mes y Año")
+            ax.set_xlabel("Año")
+            ax.set_ylabel("Mes")
+            plt.xticks(rotation=45)
+            
+            st.pyplot(fig)
+        else:
+            st.warning("No hay suficientes datos para generar el mapa de calor.")        
 
 elif pagina == "🚪 Salir":
     st.balloons() # Un toque de despedida
