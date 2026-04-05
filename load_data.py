@@ -1,4 +1,4 @@
-#CARGADO DE LOS DATOS Y CREACIÓN DE BASES DE DATOS A MongoDB Y A MySQL
+#CARGADO DE LOS DATOS Y CREACIÓN DE BASES DE DATOS A MongoDB Y A MySQL - Gonzalo Velasco Lucas y Lucía Lozano Isac
 
 import json
 from datetime import datetime

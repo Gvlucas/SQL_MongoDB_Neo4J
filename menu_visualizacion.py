@@ -1,3 +1,4 @@
+#MENÚ VISUALIZACIÓN - Gonzalo Velasco Lucas y Lucía Lozano Isac
 import pymysql
 import streamlit as st
 from pymongo import MongoClient
