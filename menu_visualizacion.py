@@ -369,7 +369,7 @@ elif pagina == "Nube de Palabras por Categoría":
     coleccion = db_mongo[categoria_mongo]
     #Limitamos para no saturar
     cursor_mongo = coleccion.find({}, {"summary": 1, "_id": 0}).limit(2000)
-    #Unimos todo el texto para trabajar directamente sobre todo ello entero (Ayuda IA para no saturar )
+    #Unimos todo el texto para trabajar directamente sobre todo ello entero (Ayuda IA para no saturar)
     texto_completo = " ".join([doc['summary'] for doc in cursor_mongo if doc.get('summary')])
 
     if texto_completo:
