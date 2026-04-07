@@ -11,8 +11,8 @@ PATHS = {
 
 MYSQL_CONFIG = {
     "host": 'localhost',
-    "user": 'Lucia',  #Añadir user
-    "password": 'bAsesDeD4tos26', #Añadir contraseña
+    "user": 'root',  #Añadir user
+    "password": 'Gonzalo@8103', #Añadir contraseña
     "database": "Basic_Information"
 }
 
@@ -25,4 +25,10 @@ MONGO_CONFIG = {
         "musical_instruments": "Instruments",
         "toys_games": "Toys_Games"
     }
+}
+
+NEO4J_CONFIG ={
+    "uri": "neo4j://localhost:7687",
+    "user": "neo4j",
+    "password": "Gonzalo8103"
 }
