@@ -1,4 +1,4 @@
-#CONFIGURACIÓN INICIAL DE LOS DATOS
+#CONFIGURACIÓN INICIAL DE LOS DATOS - Gonzalo Velasco Lucas y Lucía Lozano Isac
 
 #A modificar por el profesor
 
