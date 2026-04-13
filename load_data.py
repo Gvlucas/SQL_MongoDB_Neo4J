@@ -74,16 +74,16 @@ def insert_datos_mysql_mongo(categoria,path,cursor,coleccion_mongo)->None:
 
                 #PROCEDEMOS A REPARTIR LA INFORMACIÓN TAL Y COMO SE ESPECIFICÓ EN EL INFORME
                 datos_sql = (data.get('reviewerID'),
-                             data.get('asin'),
-                             data.get('reviewerName'),
-                             data.get('overall'),
-                             fecha_limpia,
-                             categoria)
+                            data.get('asin'),
+                            data.get('reviewerName'),
+                            data.get('overall'),
+                            fecha_limpia,
+                            categoria)
                 datos_mongo = {"reviewerID":data.get('reviewerID'),
-                               "asin":data.get('asin'),
-                               "reviewText":data.get('reviewText'),
-                               "summary":data.get('summary'),
-                               "helpful":data.get('helpful')}
+                                "asin":data.get('asin'),
+                                "reviewText":data.get('reviewText'),
+                                "summary":data.get('summary'),
+                                "helpful":data.get('helpful')}
                 
                 batch_sql.append(datos_sql) #Añadimos datos a los batches
                 batch_mongo.append(datos_mongo)
@@ -91,7 +91,7 @@ def insert_datos_mysql_mongo(categoria,path,cursor,coleccion_mongo)->None:
                 if len(batch_sql)>= tam_max:
                     #Procedemos a inserción de los datos
                     cursor.executemany(f'INSERT IGNORE INTO Reviews (reviewerID,asin,reviewerName,overall,reviewTime,categoria) ' \
-                   'VALUES (%s,%s,%s,%s,%s,%s)', batch_sql)
+                    'VALUES (%s,%s,%s,%s,%s,%s)', batch_sql)
                     conexion_mysql.commit() # Aseguramos los datos
                     #En MongoDB cargamos todo de golpe
                     coleccion_mongo.insert_many(batch_mongo)
@@ -113,7 +113,6 @@ def insert_datos_mysql_mongo(categoria,path,cursor,coleccion_mongo)->None:
 
                 
 if __name__ == "__main__":
-    t_inicio = time.time()
     try:
     # Obtenemos la conexión de MySQL y la Base de Datos de MongoDB
         conexion_mysl,db_mongo = create_databases()
@@ -132,7 +131,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"ERROR CRÍTICO EN EL PROCESO DE CARGA: {e}") 
-    t_fin = time.time()
+    
 
 #Eficiencia del proceso asegurada; 
 # · Tiempo aproximado en creación bases y cargado de datos: 25 segundos

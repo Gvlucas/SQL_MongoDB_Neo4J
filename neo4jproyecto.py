@@ -78,7 +78,7 @@ def correlacion_Pearson(u: dict,v: dict):
     denominador=((den_u**0.5)*(den_v**0.5))
     if denominador==0:
         return None
-    corr_pearson=numerador/denominador
+    corr_pearson=numerador/denominador #Utilizamos la correlación de pearson para analizar como de similares son dos usuarios
     return corr_pearson
 
 def relaciones_neo4j(session,correlaciones):
@@ -86,7 +86,8 @@ def relaciones_neo4j(session,correlaciones):
     for c in correlaciones:
         query="""MERGE (u:reviewer {id:$u})
         MERGE (v:reviewer {id:$v})
-        CREATE (u)-[:CORRELACION {correlacion:$correlacion}]->(v)"""
+        MERGE (u)-[:CORRELACION {correlacion:$correlacion}]->(v)
+        MERGE (v)-[:CORRELACION {correlacion:$correlacion}]->(u)"""
         session.run(query,u=c[0],v=c[1],correlacion=c[2])
 
 def mas_vecinos(session):
@@ -106,7 +107,7 @@ def elegir_categoria():
     3. Instrumentos musicales
     4. Juguetes""")
     categoria=input("Elige: ")
-    while categoria not in ["1","2","3","4"]:
+    while categoria not in ["1","2","3","4"]: #Pedimos el input hasta que la respuesta sea correcta
         print("Categoría incorrecta introduzca el número")
         categoria=input("Elige: ")
     if categoria=="1":
@@ -147,7 +148,7 @@ def asin_usuarios(conexion: pymysql.connect,lista_asin):
     dic={}
     for asin in lista_asin:
         cursor.execute(query,(asin,))
-        dic[asin]=cursor.fetchall()
+        dic[asin]=cursor.fetchall()  #Guardamos la información en un diccionario con clave el artículo.
     return dic
 
 def asin_neo4j(session,dic: dict):
@@ -156,7 +157,7 @@ def asin_neo4j(session,dic: dict):
     MERGE (a:articulo {id:$asinID})
     MERGE (u)-[:REVIEW {hora:$reviewTime, nota:$overall}]->(a)"""
     for asin in dic.keys():
-        for t_user in dic[asin]:
+        for t_user in dic[asin]: #Leemos el diccionario anteriormente creado
             session.run(query,id=t_user[0],asinID=asin,reviewTime=t_user[2],overall=t_user[1])
 
 def cuatrocientos_usuarios(conexion):
@@ -181,13 +182,13 @@ def dos_categorias(conexion,reviewers):
     WHERE reviewerID = %s
     GROUP BY reviewerID, categoria"""
     usu_categorias={}
-    for reviewer in reviewers:
+    for reviewer in reviewers:#Recorremos a todos los usuarios
         cursor.execute(query,(reviewer,))
         resultado=cursor.fetchall()
         categorias=[]
         for r in resultado:
             categorias.append((r[1],r[2]))
-        if len(categorias)>1:
+        if len(categorias)>1: #Si tienen más de dos categorías los almacenamos
             usu_categorias[reviewer]=categorias
     return usu_categorias
 
@@ -217,6 +218,7 @@ def cinco_articulos(conexion):
     return resultado
 
 def articulos_usuario(conexion,articulos):
+    """Devuelve los usuarios que han evaluado los 5 articulos más populares por debajo de 40 reviews"""
     query="""SELECT reviewerID
     FROM Reviews
     WHERE asin = %s"""
@@ -228,12 +230,12 @@ def articulos_usuario(conexion,articulos):
         resultado=cursor.fetchall()
         articulo_usuario=[]
         for u in resultado:
-            articulo_usuario.append(u[0])
+            articulo_usuario.append(u[0]) #Almacenamos que usuarios han evaluado cada artículo
             if u[0] not in usuarios:
                 usuarios.append(u[0])
-        articulo_usuario_dic[a]=articulo_usuario
+        articulo_usuario_dic[a]=articulo_usuario #Los guardamos en un diccionario
 
-    return usuarios,articulo_usuario_dic
+    return usuarios,articulo_usuario_dic 
 
 def usuario_usuario(conexion,usuarios):
     """Devuelve el número de artículos en común entre dos usuarios"""
@@ -347,7 +349,7 @@ if __name__ == "__main__":
                 borrar_datos(session)
                 neo4j_user_category(session,usu_categorias)
                 print("Carga de datos completada en Neo4j")
-            stop=input("Cuando quiera continuar presione ENTER:")
+            
         #===================4.4=======================
         if eleccion==4:
             top_articulos=cinco_articulos(conexion)
